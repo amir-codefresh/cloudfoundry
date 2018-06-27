@@ -1,0 +1,33 @@
+FROM node:8.11.2-alpine as builder
+RUN apk add --update --no-cache git
+ENV HELP_DIR /help
+WORKDIR $HELP_DIR
+ENV NODE_ENV production
+# Copy in package/shrinkwrap explicitly to allow caching of modules
+COPY package.json $HELP_DIR/package.json
+COPY yarn.lock $HELP_DIR/yarn.lock
+RUN yarn install --production --cache-folder /tmp/yarn-cache && rm -rf /tmp/yarn-cache
+FROM node:8.11.2-alpine as production
+RUN apk add --update --no-cache ca-certificates
+# Create restricted user
+ENV USER gladly
+RUN addgroup -S $USER && adduser -S $USER $USER
+ENV HELP_DIR /help
+WORKDIR $HELP_DIR
+# having the package manager around at this point is neither required nor desired
+# it's known to have security vulnerabilities so it's best to simply remove it
+RUN npm uninstall npm -g
+# Copy node modules from the builder image
+COPY --from=builder $HELP_DIR/node_modules ./node_modules
+# Use .dockerignore to exclude unnecessary files
+COPY . $HELP_DIR/
+COPY --from=sagan/chamber:7.0.0 ./chamber ./chamber
+RUN chown -R $USER:$USER $HELP_DIR
+USER $USER
+ENV PORT 8082
+EXPOSE 8082
+ARG build=dev
+ENV VERSION_BUILD $build
+ARG commit=dev
+ENV VERSION_COMMIT $commit
+CMD [ "./chamber", "exec", "help", "--", "yarn", "start" ]
