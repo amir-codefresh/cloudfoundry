@@ -4,9 +4,7 @@ ENV HELP_DIR /help
 WORKDIR $HELP_DIR
 ENV NODE_ENV production
 # Copy in package/shrinkwrap explicitly to allow caching of modules
-COPY package.json $HELP_DIR/package.json
-COPY yarn.lock $HELP_DIR/yarn.lock
-RUN yarn install --production --cache-folder /tmp/yarn-cache && rm -rf /tmp/yarn-cache
+
 FROM node:8.11.2-alpine as production
 RUN apk add --update --no-cache ca-certificates
 # Create restricted user
